@@ -280,7 +280,8 @@ function drawDNA(ctx, dna) {
 }
 
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~ Optimizaton function goes here ~~~~~~~~~~~~~~~~~~~~~~~
+// Original function (randomly pick attribute to )
 function original(dna_out) {
     CHANGED_SHAPE_INDEX = rand_int(ACTUAL_SHAPES-1);
 
@@ -322,7 +323,7 @@ function original(dna_out) {
     }
 }
 
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 function compute_fitness(dna) {
     var fitness = 0;
@@ -372,9 +373,9 @@ function evolve() {
 
         drawDNA(CONTEXT_BEST, DNA_BEST);
     }
-    else {
-        pass_gene_mutation(DNA_BEST, DNA_TEST, CHANGED_SHAPE_INDEX);
-    }
+    // else {
+    //     pass_gene_mutation(DNA_BEST, DNA_TEST, CHANGED_SHAPE_INDEX);
+    // }
 
     COUNTER_TOTAL++;
     EL_STEP_TOTAL.innerHTML = COUNTER_TOTAL;
@@ -409,26 +410,7 @@ function init_dna(dna) {
     }
 }
 
-function extend_dna_polygons(dna) {
-    var points = new Array(MAX_POINTS);
-    for(var j=0;j<MAX_POINTS;j++) {
-        points[j] = {'x':rand_int(IWIDTH),'y':rand_int(IHEIGHT)};
-    }
-    var color = {};
-    if(INIT_TYPE=="random")
-        color = {'r':rand_int(255),'g':rand_int(255),'b':rand_int(255),'a':0.001};
-    else
-        color = {'r':INIT_R,'g':INIT_G,'b':INIT_B,'a':INIT_A};
-    var shape = {'color':color, 'shape':points};
-    dna.push(shape);
-}
 
-function extend_dna_vertices(dna) {
-    for(var i=0;i<MAX_SHAPES;i++) {
-        var point = {'x':rand_int(IWIDTH),'y':rand_int(IHEIGHT)};
-        dna[i].shape.push(point);
-    }
-}
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 function init_canvas() {
