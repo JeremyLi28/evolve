@@ -100,7 +100,7 @@ var INIT_G = 0;
 var INIT_B = 0;
 var INIT_A = 0.001;
 
-var mutateDNA = genetic; // mutate_soft mutate_medium mutate_hard
+var mutateDNA = original; // mutate_soft mutate_medium mutate_hard
 
 var CANVAS_INPUT = 0;
 var CANVAS_OUTPUT = 0;
@@ -228,9 +228,9 @@ function get_timestamp() {
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 function setMutation(m) {
-    var trans = { 'genetic':[genetic,"b_mut_genetic"], 'gradient':[gradient,"b_mut_gradient"], 'sa':[sa,"b_mut_sa"]};
+    var trans = { 'original':[original,"b_mut_original"],'genetic':[genetic,"b_mut_genetic"], 'gradient':[gradient,"b_mut_gradient"], 'sa':[sa,"b_mut_sa"]};
     mutateDNA = trans[m][0];
-    setButtonHighlight(trans[m][1], ["b_mut_genetic", "b_mut_gradient", "b_mut_sa"]);
+    setButtonHighlight(trans[m][1], ["b_mut_original","b_mut_genetic", "b_mut_gradient", "b_mut_sa"]);
 }
 
 
@@ -281,7 +281,7 @@ function drawDNA(ctx, dna) {
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-function genetic(dna_out) {
+function original(dna_out) {
     CHANGED_SHAPE_INDEX = rand_int(ACTUAL_SHAPES-1);
 
     var roulette = rand_float(2.0);
@@ -545,15 +545,33 @@ function init() {
 
     <div id="mutationtype">
         <div class="parname">Mutation</div>
+        <div class="button" id="b_mut_original" onclick="setMutation('original')">Original</div>
         <div class="button" id="b_mut_genetic" onclick="setMutation('genetic')">Genetic</div>
-        <div class="button" id="b_mut_gradient" onclick="setMutation('gradient')">Genetic with Gradient</div>
+        <div class="button" id="b_mut_gradient" onclick="setMutation('gradient')">Gradient</div>
         <div class="button" id="b_mut_sa" onclick="setMutation('sa')">Simulate Annealing</div>
     </div>
 
  
     <br class="clr"/>
 
-
+    <div id="displayResults">
+        <h1 class="image">Results</h1>
+        <br class="clr"/>
+        <table id="displayTable" border="1">
+            <tr>
+                <th>Algorithm</th>
+                <th>Parameters....</th>
+                <th>Fitness</th>
+                <th>Improvements</th>
+                <th>Mutations</th>
+                <th>Elapsed Time</th>
+                <th>MPS</th>
+            </tr>
+            <tr>
+                <td></td>
+            </tr>
+        </table>
+    </div>
 
 
  </body>
