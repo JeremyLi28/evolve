@@ -153,7 +153,22 @@ var DATA_INPUT = 0;
 var DATA_TEST = 0;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-var T = 25
+// sa
+var T = 25;
+// gradient
+var STEP;
+var LAST_CHANGED_ATTRIBUTE;
+var LAST_CHANGED_SHPAE_INDEX;
+var LAST_CHANGED_POINT;
+var FOUND_THE_WAY = false;
+// genetic
+var POPULATION_SIZE = 50;
+var CROSS_LENGTH = 200;
+var POPULATION_FITNESS = new Array(POPULATION_SIZE);
+var POPULATION = new Array(POPULATION_SIZE);
+var POPULATION_CHROMOSOME = new Array(POPULATION_SIZE);
+var POPULATION_FITNESS_SUM;
+var MUTATE_RATE = 0.01;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 function hide(id) {
@@ -286,6 +301,7 @@ function drawDNA(ctx, dna) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Optimizaton function goes here ~~~~~~~~~~~~~~~~~~~~~~~
 // Original function (randomly pick attribute to )
 function original(dna_old) {
+    console.log("original");
     CHANGED_SHAPE_INDEX = rand_int(ACTUAL_SHAPES-1);
 
     var roulette = rand_float(2.0);
@@ -408,11 +424,246 @@ function sa(dna_old) {
     }
 }
 
-function genetic(){
+function encodeDNA(dna){
+    var dna_size = 4+MAX_POINTS*2;
+    var chromosome = new Array(MAX_SHAPES*dna_size);
+    for(var i=0;i<MAX_SHAPES;i++){
+        chromosome[i*dna_size] = dna[i].color.r;
+        chromosome[i*dna_size+1] = dna[i].color.g;
+        chromosome[i*dna_size+2] = dna[i].color.b;
+        chromosome[i*dna_size+3] = dna[i].color.a;
+        for(var j=0; j<MAX_POINTS;j++){
+            chromosome[i*dna_size+4+j*2] = dna[i].shape[j].x;
+            chromosome[i*dna_size+5+j*2] = dna[i].shape[j].y;
+        }
+    }
+    return chromosome;
+}
+
+function decodeDNA(chromosome){
+    var dna_size = 4+MAX_POINTS*2;
+    var chromosome_size = MAX_SHAPES*dna_size;
+    var dna = new Array(MAX_SHAPES);
+    init_dna(dna);
+    for(var i=0;i<MAX_SHAPES;i++){
+        dna[i].color.r = chromosome[i*dna_size];
+        dna[i].color.g = chromosome[i*dna_size+1];
+        dna[i].color.b = chromosome[i*dna_size+2];
+        dna[i].color.a = chromosome[i*dna_size+3];
+        for(var j=0; j<MAX_POINTS;j++){
+            dna[i].shape[j].x = chromosome[i*dna_size+4+j*2];
+            dna[i].shape[j].y = chromosome[i*dna_size+5+j*2];
+        }
+    }
+    return dna;
+}
+
+function naturalSelection(){
+    var roulette = rand_int(POPULATION_FITNESS_SUM);
+    var sum = 0;
+    var i = 0;
+    for(i=0; i< POPULATION_SIZE; i++){
+        sum += POPULATION_FITNESS[i];
+        if(roulette <= sum)
+            break;
+    }
+    return i;
+}
+
+function recombination(parent1, parent2){
+    var dna_size = 4+MAX_POINTS*2;
+    var start = rand_int(MAX_SHAPES*dna_size-CROSS_LENGTH);
+    var end = start + CROSS_LENGTH;
+    var tmp;
+    for(var i=start; i<end; i++){
+        tmp = parent1[i];
+        parent1[i] = parent2[i];
+        parent2[i] = tmp;
+    }
+}
+
+function mutation(chromosome){
+    var dna_size = 4+MAX_POINTS*2;
+    var chromosome_size = MAX_SHAPES*dna_size;
+    for(var i=0; i<chromosome_size;i++){
+        var mutate = rand_float(1.0);
+        if(mutate < MUTATE_RATE){
+            switch(i%dna_size){
+                case 0,1,2: chromosome[i] = rand_int(255); break;
+                case 3: chromosome[i] = rand_float(1.0); break;
+                default:{
+                    if((i%dna_size)%2==0)
+                        chromosome[i] = rand_int(IWIDTH);
+                    else
+                        chromosome[i] = rand_int(IHEIGHT);
+                }
+            }
+        }  
+    }
+}
+
+function genetic(dna_old){
+    console.log("genetic");
+
+    // recombination
+    var children_chromosome = new Array(POPULATION_SIZE);
+    for(var i=0; i < POPULATION_SIZE/2; i++){
+        var idx1 = naturalSelection();
+        var idx2 = naturalSelection();
+        var parent1 = POPULATION_CHROMOSOME[idx1];
+        var parent2 = POPULATION_CHROMOSOME[idx2];
+        recombination(parent1,parent2);
+        children_chromosome[2*i] = parent1;
+        children_chromosome[2*i+1] = parent2;
+    }
+
+    // mutation
+    for(var i=0; i < POPULATION_SIZE; i++){
+        mutation(children_chromosome[i]);
+    }
+
+    POPULATION_CHROMOSOME = children_chromosome;
+
+
+    // update population
+    // calculate fitness
+    // choose from children
+    POPULATION_FITNESS_SUM = 0;
+    var min = 0;
+    for(var i=0; i < POPULATION_SIZE; i++){
+        POPULATION[i] = decodeDNA(POPULATION_CHROMOSOME[i]);
+        drawDNA(CONTEXT_TEST, POPULATION[i]);
+        POPULATION_FITNESS[i] = compute_fitness(POPULATION[i]);
+        if(POPULATION_FITNESS[i] < POPULATION_FITNESS[min])
+            min = i;
+        POPULATION_FITNESS_SUM += POPULATION_FITNESS[i];
+    }
+    drawDNA(CONTEXT_TEST, POPULATION[min]);
+    return POPULATION[min];
 
 }
 
-function gradient(){
+function gradient(dna_old){
+    console.log("gradient");
+    CHANGED_SHAPE_INDEX = LAST_CHANGED_SHPAE_INDEX;
+
+    var dna_new = Array(MAX_SHAPES);
+    init_dna(dna_new);
+    copyDNA(dna_old,dna_new);
+
+    // if found the way last time, then go along the way
+    if(FOUND_THE_WAY){
+        // make change like last time
+        switch(LAST_CHANGED_ATTRIBUTE){
+            case "R":{
+                dna_new[CHANGED_SHAPE_INDEX].color.r += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].color.r = clamp(dna_new[CHANGED_SHAPE_INDEX].color.r,0,255);
+                break;
+            }
+            case "G":{
+                dna_new[CHANGED_SHAPE_INDEX].color.g += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].color.g = clamp(dna_new[CHANGED_SHAPE_INDEX].color.g,0,255);
+                break;
+            }
+            case "B":{
+                dna_new[CHANGED_SHAPE_INDEX].color.b += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].color.b = clamp(dna_new[CHANGED_SHAPE_INDEX].color.b,0,255);
+                break;
+            }
+            case "A":{
+                dna_new[CHANGED_SHAPE_INDEX].color.a += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].color.a = clamp(dna_new[CHANGED_SHAPE_INDEX].color.a,0,1.0);
+                break;
+            }
+            case "X":{
+                dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].x += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].x = clamp(dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].x,0,IWIDTH);
+                break;
+            }
+            case "Y":{
+                dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].y += STEP;
+                dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].y = clamp(dna_new[CHANGED_SHAPE_INDEX].shape[LAST_CHANGED_POINT].y,0,IHEIGHT);
+                break;
+            }
+        }
+        // if change is good
+        drawDNA(CONTEXT_TEST, dna_new);
+        var fitness_new = compute_fitness(dna_new);
+        if(fitness_new < FITNESS_BEST){
+            return dna_new;
+        }
+        else{
+            FOUND_THE_WAY = false;
+            return dna_old;
+        }
+    }
+    // if not found the way, randomly pick way
+    else{
+        // else if change is not good
+        CHANGED_SHAPE_INDEX = rand_int(ACTUAL_SHAPES-1);
+        LAST_CHANGED_SHPAE_INDEX = CHANGED_SHAPE_INDEX;
+
+        var roulette = rand_float(2.0);
+
+        // mutate color
+        if(roulette<1) {
+            // red
+            if(roulette<0.25) {
+                dna_new[CHANGED_SHAPE_INDEX].color.r = rand_int(255);
+                LAST_CHANGED_ATTRIBUTE = "R";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].color.r - dna_old[CHANGED_SHAPE_INDEX].color.r;
+            }
+            // green
+            else if(roulette<0.5) {
+                dna_new[CHANGED_SHAPE_INDEX].color.g = rand_int(255);
+                LAST_CHANGED_ATTRIBUTE = "G";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].color.g - dna_old[CHANGED_SHAPE_INDEX].color.g;
+            }
+            // blue
+            else if(roulette<0.75) {
+                dna_new[CHANGED_SHAPE_INDEX].color.b = rand_int(255);
+                LAST_CHANGED_ATTRIBUTE = "B";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].color.b - dna_old[CHANGED_SHAPE_INDEX].color.b;
+            }
+            // alpha
+            else if(roulette<1.0) {
+                dna_new[CHANGED_SHAPE_INDEX].color.a = rand_float(1.0);
+                LAST_CHANGED_ATTRIBUTE = "A";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].color.a - dna_old[CHANGED_SHAPE_INDEX].color.a;
+            }
+        }
+
+        // mutate shape
+        else {
+            var CHANGED_POINT_INDEX = rand_int(ACTUAL_POINTS-1);
+            LAST_CHANGED_POINT = CHANGED_POINT_INDEX;
+            // x-coordinate
+            if(roulette<1.5) {
+                dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].x = rand_int(IWIDTH);
+                LAST_CHANGED_ATTRIBUTE = "X";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].x - dna_old[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].x;
+            }
+
+            // y-coordinate
+            else {
+                dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].y = rand_int(IHEIGHT);
+                LAST_CHANGED_ATTRIBUTE = "Y";
+                STEP = dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].y - dna_old[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].y;
+            }
+        }
+
+        drawDNA(CONTEXT_TEST, dna_new);
+        var fitness_new = compute_fitness(dna_new);
+        // console.log(dna_old==dna_new);
+        // console.log("new: "+fitness_new);
+        // console.log("old: "+compute_fitness(dna_old));
+        if(fitness_new < FITNESS_BEST){
+            FOUND_THE_WAY = true;
+            return dna_new;
+        }
+        else
+            return dna_old;
+    }
 
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -449,12 +700,14 @@ function copyDNA(dna_from, dna_to) {
 
 function evolve() {
     DNA_TEST = mutateDNA(DNA_TEST);
-    // drawDNA(CONTEXT_TEST, DNA_TEST);
-
+ 
     FITNESS_TEST = compute_fitness(DNA_TEST);
 
     if(FITNESS_TEST<FITNESS_BEST) {
-        pass_gene_mutation(DNA_TEST, DNA_BEST, CHANGED_SHAPE_INDEX);
+        if(mutateDNA==genetic)
+            copyDNA(DNA_TEST,DNA_BEST)
+        else
+            pass_gene_mutation(DNA_TEST, DNA_BEST, CHANGED_SHAPE_INDEX);
 
         FITNESS_BEST = FITNESS_TEST;
         FITNESS_BEST_NORMALIZED = 100*(1-FITNESS_BEST/NORM_COEF);
@@ -465,9 +718,9 @@ function evolve() {
 
         drawDNA(CONTEXT_BEST, DNA_BEST);
     }
-    else {
-         pass_gene_mutation(DNA_BEST, DNA_TEST, CHANGED_SHAPE_INDEX);
-     }
+    // else {
+    //      pass_gene_mutation(DNA_BEST, DNA_TEST, CHANGED_SHAPE_INDEX);
+    //  }
 
     COUNTER_TOTAL++;
     EL_STEP_TOTAL.innerHTML = COUNTER_TOTAL;
@@ -546,6 +799,23 @@ function init_canvas() {
     copyDNA(DNA_BEST, DNA_TEST);
 
     redrawDNA();
+
+    // genetic
+    for(var i=0; i < POPULATION_SIZE; i++){
+        var DNA = new Array(MAX_SHAPES);
+        init_dna(DNA);
+        POPULATION[i] = DNA;
+    }
+    for(var i=0; i< POPULATION_SIZE; i++)
+        POPULATION_CHROMOSOME[i] = encodeDNA(POPULATION[i]);
+
+    POPULATION_FITNESS_SUM = 0;
+    for(var i=0; i < POPULATION_SIZE; i++){
+        drawDNA(CONTEXT_TEST, POPULATION[i]);
+        POPULATION_FITNESS[i] = compute_fitness(POPULATION[i]);
+        POPULATION_FITNESS_SUM += POPULATION_FITNESS[i];
+    }
+
 }
 
 
@@ -618,7 +888,7 @@ function init() {
     <br class="clr"/>
 
     <div id="mutationtype">
-        <div class="parname">Mutation</div>
+        <div class="parname">Function</div>
         <div class="button" id="b_mut_original" onclick="setMutation('original')">Original</div>
         <div class="button" id="b_mut_genetic" onclick="setMutation('genetic')">Genetic</div>
         <div class="button" id="b_mut_gradient" onclick="setMutation('gradient')">Gradient</div>
