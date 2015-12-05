@@ -282,28 +282,32 @@ function drawDNA(ctx, dna) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Optimizaton function goes here ~~~~~~~~~~~~~~~~~~~~~~~
 // Original function (randomly pick attribute to )
-function original(dna_out) {
+function original(dna_old) {
     CHANGED_SHAPE_INDEX = rand_int(ACTUAL_SHAPES-1);
 
     var roulette = rand_float(2.0);
+    var dna_new = Array(MAX_SHAPES);
+    init_dna(dna_new);
+    copyDNA(dna_old,dna_new);
+    // var dna_new = dna_old;
 
     // mutate color
     if(roulette<1) {
         // red
         if(roulette<0.25) {
-            dna_out[CHANGED_SHAPE_INDEX].color.r = rand_int(255);
+            dna_new[CHANGED_SHAPE_INDEX].color.r = rand_int(255);
         }
         // green
         else if(roulette<0.5) {
-            dna_out[CHANGED_SHAPE_INDEX].color.g = rand_int(255);
+            dna_new[CHANGED_SHAPE_INDEX].color.g = rand_int(255);
         }
         // blue
         else if(roulette<0.75) {
-            dna_out[CHANGED_SHAPE_INDEX].color.b = rand_int(255);
+            dna_new[CHANGED_SHAPE_INDEX].color.b = rand_int(255);
         }
         // alpha
         else if(roulette<1.0) {
-            dna_out[CHANGED_SHAPE_INDEX].color.a = rand_float(1.0);
+            dna_new[CHANGED_SHAPE_INDEX].color.a = rand_float(1.0);
         }
     }
 
@@ -313,14 +317,24 @@ function original(dna_out) {
 
         // x-coordinate
         if(roulette<1.5) {
-            dna_out[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].x = rand_int(IWIDTH);
+            dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].x = rand_int(IWIDTH);
         }
 
         // y-coordinate
         else {
-            dna_out[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].y = rand_int(IHEIGHT);
+            dna_new[CHANGED_SHAPE_INDEX].shape[CHANGED_POINT_INDEX].y = rand_int(IHEIGHT);
         }
     }
+
+    drawDNA(CONTEXT_TEST, dna_new);
+    var fitness_new = compute_fitness(dna_new);
+    // console.log(dna_old==dna_new);
+    // console.log("new: "+fitness_new);
+    // console.log("old: "+compute_fitness(dna_old));
+    if(fitness_new < FITNESS_BEST)
+        return dna_new;
+    else
+        return dna_old;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -356,8 +370,8 @@ function copyDNA(dna_from, dna_to) {
 }
 
 function evolve() {
-    mutateDNA(DNA_TEST);
-    drawDNA(CONTEXT_TEST, DNA_TEST);
+    DNA_TEST = mutateDNA(DNA_TEST);
+    // drawDNA(CONTEXT_TEST, DNA_TEST);
 
     FITNESS_TEST = compute_fitness(DNA_TEST);
 
